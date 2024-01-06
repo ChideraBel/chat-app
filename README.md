@@ -1,3 +1,7 @@
+# Getting Started with Chat App
+
+Please check download or check out the server side the handles the communication: https://github.com/ChideraBel/chatserver.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
