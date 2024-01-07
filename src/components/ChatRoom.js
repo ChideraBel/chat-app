@@ -1,16 +1,21 @@
-import React, { useEffect, useState } from "react";
-import {over} from 'stompjs'
+import React, { useState, useRef } from "react";
+import { FaPaperclip } from 'react-icons/fa'
+import { over } from 'stompjs'
 import SockJS from "sockjs-client";
 
 var stompClient = null;
+
 const ChatRoom = () =>{
+    const MAX_FILE_SIZE = 150 * 150;
     const [userData, setUserData] = useState({
         userName: "",
         recepientName: "",
         connectionStatus: false,
-        message: ""
+        message: "",
+        image: "",
     })
-    
+    const fileInputRef = useRef();
+
     const [publicChats, setPublicChats] = useState([])
     const [privateChats, setPrivateChats] = useState(new Map());
     const [tab, setTab] = useState("CHATROOM");
@@ -80,11 +85,12 @@ const ChatRoom = () =>{
             let messageToServer = {
                 senderName: userData.userName,
                 message: userData.message,
-                status: "MESSAGE"
+                status: "MESSAGE",
+                image: userData.image,
             };
             console.log(messageToServer);
             stompClient.send("/app/message",{},JSON.stringify(messageToServer));
-            setUserData({...userData, "message": ""});
+            setUserData({...userData, "message": "", "image":""});
         }
     }
 
@@ -94,6 +100,7 @@ const ChatRoom = () =>{
                 senderName: userData.userName,
                 receiverName: tab, 
                 message: userData.message,
+                image: userData.image,
                 status: "MESSAGE"
             };
 
@@ -103,7 +110,7 @@ const ChatRoom = () =>{
             }
 
             stompClient.send("/app/private-message",{},JSON.stringify(messageToServer));
-            setUserData({...userData, "message": ""});
+            setUserData({...userData, "message": "", "image":""});
         }
     }
     
@@ -116,6 +123,31 @@ const ChatRoom = () =>{
             stompClient.send("/app/message",{},JSON.stringify(messageToServer));
         }
     }
+
+    const handleFileChange = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+
+            if (file.size > MAX_FILE_SIZE) {
+                alert("File size should not exceed 0.22 MB.");
+                return; // Exit the function if file is too large
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result;
+
+                // Send this string through STOMP
+                console.log(base64String);
+                setUserData({...userData, "image":base64String});
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    const handleClick = () => {
+        fileInputRef.current.click();
+    };
 
     return(
         <div className="container">
@@ -135,16 +167,16 @@ const ChatRoom = () =>{
                     <ul className="chat-messages">
                         {publicChats.map((chat, index)=>(
                             <li className={`message ${chat.senderName === userData.userName && "self"}`} key={index}>
-                                {chat.senderName !== userData.userName && <div className="avatar">{chat.senderName}</div>}
                                 <div className="message-data">{chat.message}</div>
-                                {chat.senderName === userData.userName && <div className="avatar self">{chat.senderName}</div>}
+                                {chat.image !== "" && <div style={{alignSelf: chat.senderName === userData.userName ? 'flex-end' : 'flex-start'}}><img className="imageMessage" src={chat.image}/></div>}
                             </li>
                         ))}
                     </ul>
 
                     <div className="send-message">
-                        <input type="text" className="input-meesage" placeholder="Send broadcast message" value={userData.message}
+                        <input type="text" className="input-message" placeholder="Send broadcast message" value={userData.message}
                             onChange={setMessage}/>
+                        <button className="attach-button" onClick={() => handleClick()}><FaPaperclip color="grey"/></button>
                         <button type="button" className="send-button" onClick={sendPublicMessage}>Send</button>
                     </div>
                 </div>}
@@ -155,13 +187,15 @@ const ChatRoom = () =>{
                                 {chat.senderName !== userData.userName && <div className="avatar">{chat.senderName}</div>}
                                 <div className="message-data">{chat.message}</div>
                                 {chat.senderName === userData.userName && <div className="avatar self">{chat.senderName}</div>}
+                                {chat.image !== "" && <div className="imageMessage"><img src={chat.image}/></div>}
                             </li>
                         ))}
                     </ul>
 
                     <div className="send-message">
-                        <input type="text" className="input-meesage" placeholder={`Send message to ${tab}`} value={userData.message}
+                        <input type="text" className="input-message" placeholder={`Send message to ${tab}`} value={userData.message}
                             onChange={setMessage}/>
+                        <button className="attach-button" onClick={() => handleClick()}><FaPaperclip color="grey"/></button>
                         <button type="button" className="send-button" onClick={sendPrivateMessage}>Send</button>
                     </div>
                 </div>}
@@ -180,6 +214,15 @@ const ChatRoom = () =>{
                 </button>
             </div>
             }
+            <div>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    accept=".png, .jpg, .jpeg"
+                    onChange={handleFileChange}
+                />
+            </div>
         </div>
     )
 }
